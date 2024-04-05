@@ -1,21 +1,15 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"net/http"
+	"pithub-backend/auth"
+	"pithub-backend/config"
 )
 
 func main() {
-	// Define a handler function to respond to requests
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "Hello, World! You've reached the server on port 8000\n")
-	})
-
-	// Start the server on port 8000
-	err := http.ListenAndServe(":8000", nil)
-
-	// Handle potential errors
-	if err != nil {
-		panic(err)
-	}
+	config.ConnectDb()
+	http.HandleFunc("/login", auth.Login)
+	http.HandleFunc("/signup", auth.Register)
+	log.Fatal(http.ListenAndServe(":8000", nil))
 }
