@@ -24,13 +24,31 @@ type User struct {
 	Password []byte             `bson:"password"`
 }
 
+type ReqUser struct {
+	Name     string `json:"name"`
+	Username string `json:"username"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+type ReqLoginUser struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
 type Response struct {
 	Success bool   `json:"success"`
 	Message string `json:"message"`
 }
 
 func Login(w http.ResponseWriter, r *http.Request) {
-
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
 	if r.Method != "POST" {
 		http.Error(w, "Method not accepted", http.StatusNotFound)
 		return
@@ -39,31 +57,42 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error in parsing form!", http.StatusNotFound)
 		return
 	}
-	email, password := r.FormValue("email"), r.FormValue("password")
+
+	var reqBody ReqLoginUser
+	err := json.NewDecoder(r.Body).Decode(&reqBody)
+	if err != nil {
+		http.Error(w, "Something Went Wrong!", http.StatusInternalServerError)
+		return
+	}
+
+	email := reqBody.Email
+	password := reqBody.Password
+	fmt.Println(email, password)
 
 	db := config.DB
 
 	var user User
 
-	err := db.Collection("users").FindOne(context.Background(), bson.M{"email": email}).Decode(&user)
+	err = db.Collection("users").FindOne(context.Background(), bson.M{"email": email}).Decode(&user)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			fmt.Println("No matching document found")
 			return
 		}
-		log.Fatal(err)
+		http.Error(w, "Something Went Wrong!", 500)
+		return
 	}
 
-	err1 := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
-	if err1 != nil {
-		if err1 == bcrypt.ErrMismatchedHashAndPassword {
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
+	if err != nil {
+		if err == bcrypt.ErrMismatchedHashAndPassword {
 			http.Error(w, "User not found or Password not Matching", http.StatusUnauthorized)
 		} else {
 			http.Error(w, "Failed to compare passwords", http.StatusInternalServerError)
 		}
 		return
 	} else {
-		var jwtKey = []byte("its_my_secret_key_of_passwod_of_kuntham")
+		var jwtKey = []byte("JWT_SECRET_KEY")
 		token := jwt.New(jwt.SigningMethodHS256)
 		claims := token.Claims.(jwt.MapClaims)
 		claims["authorized"] = true
@@ -80,8 +109,8 @@ func Login(w http.ResponseWriter, r *http.Request) {
 			Message: "Login successful",
 		}
 
-		responseJSON, err1 := json.Marshal(responseData)
-		if err1 != nil {
+		responseJSON, err := json.Marshal(responseData)
+		if err != nil {
 			http.Error(w, "Error encoding JSON", http.StatusInternalServerError)
 			return
 		}
@@ -101,7 +130,15 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func Register(w http.ResponseWriter, r *http.Request) {
+func Signup(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "*")
+	// w.Header().Set("Access-Control-Allow-Headers", "Content-Type, application/json")
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
 	if r.Method != "POST" {
 		http.Error(w, "Method not accepted!", http.StatusNotFound)
 		return
@@ -111,23 +148,27 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	name, username, email, password := r.FormValue("name"), r.FormValue("username"), r.FormValue("email"), r.FormValue("password")
-	hashedPassword, err1 := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	var reqUser ReqUser
+	err := json.NewDecoder(r.Body).Decode(&reqUser)
+	if err != nil {
+		panic(err)
+	}
+	hashedPassword, err1 := bcrypt.GenerateFromPassword([]byte(reqUser.Password), bcrypt.DefaultCost)
 	if err1 != nil {
 		http.Error(w, "Failed to hash password", http.StatusInternalServerError)
 		return
 	}
 	db := config.DB
 	user := bson.D{
-		primitive.E{Key: "name", Value: name},
-		primitive.E{Key: "username", Value: username},
-		primitive.E{Key: "email", Value: email},
+		primitive.E{Key: "name", Value: reqUser.Name},
+		primitive.E{Key: "username", Value: reqUser.Username},
+		primitive.E{Key: "email", Value: reqUser.Email},
 		primitive.E{Key: "password", Value: hashedPassword},
 	}
 
 	var existUser User
 
-	err2 := db.Collection("users").FindOne(context.Background(), bson.M{"email": email}).Decode(&existUser)
+	err2 := db.Collection("users").FindOne(context.Background(), bson.M{"email": reqUser.Email}).Decode(&existUser)
 	if err2 != nil {
 		if err2 != mongo.ErrNoDocuments {
 			log.Fatal(err2)
@@ -136,7 +177,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	} else {
 		responseData := Response{
 			Success: false,
-			Message: "email already used",
+			Message: "email:email already used",
 		}
 
 		responseJSON, err5 := json.Marshal(responseData)
@@ -150,7 +191,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err3 := db.Collection("users").FindOne(context.Background(), bson.M{"username": username}).Decode(&existUser)
+	err3 := db.Collection("users").FindOne(context.Background(), bson.M{"username": reqUser.Username}).Decode(&existUser)
 	if err3 != nil {
 		if err3 != mongo.ErrNoDocuments {
 			log.Fatal(err3)
@@ -159,7 +200,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	} else {
 		responseData := Response{
 			Success: false,
-			Message: "username already used",
+			Message: "username:username already used",
 		}
 
 		responseJSON, err5 := json.Marshal(responseData)
@@ -179,11 +220,11 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		log.Fatal("Error finding document:", err4)
 		return
 	}
-	var jwtKey = []byte("its_my_secret_key_of_passwod_of_kuntham")
+	var jwtKey = []byte("JWT_SECRET_KEY")
 	token := jwt.New(jwt.SigningMethodHS256)
 	claims := token.Claims.(jwt.MapClaims)
 	claims["authorized"] = true
-	claims["username"] = username
+	claims["username"] = reqUser.Username
 	claims["exp"] = time.Now().Add(time.Hour * 24).Unix()
 	tokenString, err4 := token.SignedString(jwtKey)
 	if err4 != nil {
