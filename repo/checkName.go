@@ -29,9 +29,10 @@ type ReqBody struct {
 }
 
 func CheckName(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
 	if r.Method == "OPTIONS" {
 		w.WriteHeader(http.StatusOK)
 		return
@@ -50,10 +51,10 @@ func CheckName(w http.ResponseWriter, r *http.Request) {
 	tokenCookie, err := r.Cookie("token")
 
 	if err != nil {
+		fmt.Println(err)
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
-
 	tokenString := tokenCookie.Value
 	token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
 		return []byte("JWT_SECRET_KEY"), nil
@@ -77,6 +78,7 @@ func CheckName(w http.ResponseWriter, r *http.Request) {
 	}
 
 	username, ok := claims["username"].(string)
+	fmt.Println(username)
 	if !ok {
 		http.Error(w, "Something Went Wrong!", http.StatusInternalServerError)
 		return
@@ -84,13 +86,11 @@ func CheckName(w http.ResponseWriter, r *http.Request) {
 
 	var reqBody ReqBody
 	err = json.NewDecoder(r.Body).Decode(&reqBody)
-	if err != nil{
-		http.Error(w,"Something Went Wrong!",http.StatusInternalServerError)
+	if err != nil {
+		http.Error(w, "Something Went Wrong!", http.StatusInternalServerError)
 		return
 	}
-    name := reqBody.Name
-
-	fmt.Println(name, username)
+	name := reqBody.Name
 	db := config.DB
 
 	var repo DbRepo
@@ -127,6 +127,6 @@ func CheckName(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
+	w.WriteHeader(http.StatusOK)
 	w.Write(responseJSON)
 }

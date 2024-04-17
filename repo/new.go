@@ -5,19 +5,21 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"pithub-backend/auth"
 	"pithub-backend/config"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
 )
 
-type ReqRepo struct {
+type NewRepoReqBody struct {
 	Name        string   `json:"name"`
 	Secure      string   `json:"secure"`
 	Description string   `json:"description"`
 	CodeURL     string   `json:"codeURL"`
 	Languages   []string `json:"languages"`
 	LiveURL     string   `json:"liveURL"`
+	Token       string   `json:"token"`
 }
 
 type Repo struct {
@@ -35,49 +37,44 @@ func CreateRepo(w http.ResponseWriter, r *http.Request) {
 	//TODO:Middleware for token validation
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+	w.Header().Set("Access-Control-Allow-Headers", "*")
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
 
 	if r.Method == "OPTIONS" {
 		w.WriteHeader(http.StatusOK)
 		return
 	}
-	
 	if r.Method != "POST" {
 		http.Error(w, "Method not accepted", http.StatusNotFound)
 		return
 	}
-
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "Error in parsing form!", http.StatusNotFound)
 		return
 	}
 
-	tokenCookie, err := r.Cookie("token")
-
+	var reqBody NewRepoReqBody
+	err := json.NewDecoder(r.Body).Decode(&reqBody)
 	if err != nil {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		http.Error(w, "Something Went Wrong!", http.StatusInternalServerError)
 		return
 	}
 
-	tokenString := tokenCookie.Value
+	tokenString := reqBody.Token
+	fmt.Println(tokenString)
 	token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
 		return []byte("JWT_SECRET_KEY"), nil
 	})
 	if err != nil {
 		fmt.Println("Error parsing token:", err)
-		http.Error(w, "Something Went Wrong!", http.StatusInternalServerError)
+		http.Error(w, "Something Went Wrong!"+err.Error(), http.StatusInternalServerError)
 		return
 	}
 	if !token.Valid {
 		http.Error(w, "Invalid token , unauthorized", http.StatusUnauthorized)
 		return
 	}
-	var reqRepo ReqRepo
-	err = json.NewDecoder(r.Body).Decode(&reqRepo)
-	if err != nil {
-		http.Error(w, "Something Went Wrong!", http.StatusInternalServerError)
-		return
-	}
+
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok {
 		fmt.Println("Error parsing claims")
@@ -91,15 +88,27 @@ func CreateRepo(w http.ResponseWriter, r *http.Request) {
 
 	time := time.Now().UnixMilli()
 
-	repo := Repo{reqRepo.Name, reqRepo.Secure, reqRepo.Description, reqRepo.CodeURL, reqRepo.Languages, reqRepo.LiveURL, time, username}
-	
+	repo := Repo{reqBody.Name, reqBody.Secure, reqBody.Description, reqBody.CodeURL, reqBody.Languages, reqBody.LiveURL, time, username}
+
 	db := config.DB
 
 	_, err = db.Collection("repos").InsertOne(context.Background(), repo)
 
 	if err != nil {
-		http.Error(w, "Something Went Wrong ", http.StatusInternalServerError)
+		http.Error(w, "Something Went Wrong "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	http.Error(w,"Something Went Wrong!",500)
+	responseData := auth.Response{
+		Success: true,
+		Message: "Repository Created Successfully",
+	}
+
+	responseJSON, err := json.Marshal(responseData)
+	if err != nil {
+		http.Error(w, "Error encoding JSON", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(responseJSON)
 }
