@@ -13,6 +13,12 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
+type Tasks struct {
+	ActiveTasks  []string `bson:"activeTasks"`
+	WorkingTasks []string `bson:"workingTasks"`
+	ClosedTasks  []string `bson:"closedTasks"`
+}
+
 type DbGetRepo struct {
 	Id          string   `bson:"_id"`
 	Name        string   `bson:"name"`
@@ -22,6 +28,7 @@ type DbGetRepo struct {
 	CodeURL     string   `bson:"codeURL"`
 	LiveURL     string   `bson:"liveURL"`
 	Languages   []string `bson:"languages"`
+	Tasks       Tasks    `bson:"tasks"`
 	Date        int64    `bson:"date"`
 }
 
@@ -33,6 +40,7 @@ type ResRepo struct {
 	Secure      string   `json:"secure"`
 	CodeURL     string   `json:"codeURL"`
 	LiveURL     string   `json:"liveURL"`
+	Tasks       Tasks    `json:"tasks"`
 	Languages   []string `json:"languages"`
 	Date        int64    `json:"date"`
 }
@@ -89,12 +97,11 @@ func GetRepo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	owner := false 
+	owner := false
 	if tokenUsername == username {
 		owner = true
 	}
 	fmt.Println(owner)
-
 
 	db := config.DB
 	var repo DbGetRepo
@@ -116,7 +123,7 @@ func GetRepo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resData := ResRepo(repo)
+	resData := ResRepo{Id: repo.Id, Name: repo.Name, Username: repo.Username, Description: repo.Description, Secure: repo.Secure, CodeURL: repo.CodeURL, LiveURL: repo.LiveURL, Tasks: Tasks{ActiveTasks: repo.Tasks.ActiveTasks, WorkingTasks: repo.Tasks.WorkingTasks, ClosedTasks: repo.Tasks.ClosedTasks}}
 	responseJSON, err := json.Marshal((resData))
 	if err != nil {
 		http.Error(w, "Something Went Wrong!", http.StatusInternalServerError)

@@ -1,14 +1,21 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"pithub-backend/auth"
 	"pithub-backend/config"
 	"pithub-backend/repo"
+
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	err := godotenv.Load(".env")
+	if err != nil {
+		fmt.Println("Error while .env")
+	}
 	config.ConnectDb()
 
 	http.HandleFunc("/login", auth.Login)

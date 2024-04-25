@@ -3,6 +3,7 @@ package config
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -11,7 +12,7 @@ import (
 var DB *mongo.Database
 
 func ConnectDb() {
-	clientOptions := options.Client().ApplyURI("mongodb://127.0.0.1:27017/")
+	clientOptions := options.Client().ApplyURI(os.Getenv("MONGO_URL"))
 	client, err := mongo.Connect(context.Background(), clientOptions)
 	if err != nil {
 		panic(err)

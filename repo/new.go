@@ -23,14 +23,15 @@ type NewRepoReqBody struct {
 }
 
 type Repo struct {
-	Name        string
-	Secure      string
-	Description string
-	CodeURL     string
-	Languages   []string
-	LiveURL     string
-	Date        int64
-	Username    string
+	Name        string   `bson:"name"`
+	Secure      string   `bson:"secure"`
+	Description string   `bson:"description"`
+	CodeURL     string   `bson:"codeURL"`
+	Languages   []string `bson:"languages"`
+	LiveURL     string   `bson:"liveURL"`
+	Date        int64    `bson:"date"`
+	Username    string   `bson:"username"`
+	Tasks 		Tasks    `bson:"tasks"`
 }
 
 func CreateRepo(w http.ResponseWriter, r *http.Request) {
@@ -88,7 +89,7 @@ func CreateRepo(w http.ResponseWriter, r *http.Request) {
 
 	time := time.Now().UnixMilli()
 
-	repo := Repo{reqBody.Name, reqBody.Secure, reqBody.Description, reqBody.CodeURL, reqBody.Languages, reqBody.LiveURL, time, username}
+	repo := Repo{reqBody.Name, reqBody.Secure, reqBody.Description, reqBody.CodeURL, reqBody.Languages, reqBody.LiveURL, time, username,Tasks{ActiveTasks: []string{},WorkingTasks: []string{},ClosedTasks: []string{}}}
 
 	db := config.DB
 
