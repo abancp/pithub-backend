@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"pithub-backend/auth"
 	"pithub-backend/config"
+	"strings"
 
 	"github.com/dgrijalva/jwt-go"
 	"go.mongodb.org/mongo-driver/bson"
@@ -31,7 +32,7 @@ type ReqBody struct {
 func CheckName(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "https://pithub.vercel.app")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers","Origin, X-Requested-With, Content-Type, Accept")
+	w.Header().Set("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept")
 	w.Header().Set("Access-Control-Allow-Credentials", "true")
 	if r.Method == "OPTIONS" {
 		w.WriteHeader(http.StatusOK)
@@ -45,21 +46,27 @@ func CheckName(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error in parsing form!", http.StatusNotFound)
 		return
 	}
-
-	//-------------
-	cookies := make(map[string]*http.Cookie)
-	for _, cookie := range r.Cookies() {
-		cookies[cookie.Name] = cookie
-	}
-	fmt.Println(cookies)
-	tokenCookie, err := r.Cookie("token")
-
-	if err != nil {
-		fmt.Println(err)
+	authHeader := r.Header.Get("Authorization")
+	isBearer := strings.HasPrefix(authHeader, "Bearer ")
+	if !isBearer {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
-	tokenString := tokenCookie.Value
+
+	// //-------------
+	// cookies := make(map[string]*http.Cookie)
+	// for _, cookie := range r.Cookies() {
+	// 	cookies[cookie.Name] = cookie
+	// }
+	// fmt.Println(cookies)
+	// tokenCookie, err := r.Cookie("token")
+
+	// if err != nil {
+	// 	fmt.Println(err)
+	// 	http.Error(w, "unauthorized", http.StatusUnauthorized)
+	// 	return
+	// }
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 	token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
 		return []byte("JWT_SECRET_KEY"), nil
 	})
