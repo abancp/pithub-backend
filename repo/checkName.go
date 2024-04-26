@@ -47,7 +47,11 @@ func CheckName(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//-------------
-
+	cookies := make(map[string]*http.Cookie)
+	for _, cookie := range r.Cookies() {
+		cookies[cookie.Name] = cookie
+	}
+	fmt.Println(cookies)
 	tokenCookie, err := r.Cookie("token")
 
 	if err != nil {
