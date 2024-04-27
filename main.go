@@ -20,6 +20,7 @@ func main() {
 
 	http.HandleFunc("/login", auth.Login)
 	http.HandleFunc("/signup", auth.Signup)
+	http.HandleFunc("/user", auth.GetUser)
 	http.HandleFunc("/repo/new", repo.CreateRepo)
 	http.HandleFunc("/repo/checkname", repo.CheckName)
 	http.HandleFunc("/repo/", repo.GetRepo)

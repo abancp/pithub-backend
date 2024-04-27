@@ -73,7 +73,7 @@ func CheckName(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
-		fmt.Println("Error parsing token:", err)
+		fmt.Println("Error parsing token:", err,token)
 		http.Error(w, "Something Went Wrong!", http.StatusInternalServerError)
 		return
 	}
